@@ -97,7 +97,7 @@ export default function App() {
         <section className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs relative" id="header-banner-section">
           <div className="aspect-[21/9] sm:aspect-[21/7] lg:aspect-[21/5] w-full relative">
             <img 
-              src="/src/assets/images/job_search_banner_1780923686006.png" 
+              src="/images/job_search_banner_1780923686006.png" 
               alt="Find your suitable job" 
               className="w-full h-full object-cover object-center"
               referrerPolicy="no-referrer"
