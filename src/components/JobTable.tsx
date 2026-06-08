@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { 
   Search, 
   ExternalLink, 
-  Trash2, 
   ChevronDown, 
   ChevronUp, 
   Building2, 
@@ -54,69 +53,68 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
         return Date.now();
       };
 
-      const jobMillis = getMillis(job.createdAt);
-      const diffMs = Date.now() - jobMillis;
-
-      let timeFilterMatch = false;
-
-      // Classify by created timestamp
-      if (timeFilter === "day" && diffMs <= 24 * 60 * 60 * 1000) {
-        timeFilterMatch = true;
-      } else if (timeFilter === "week" && diffMs <= 7 * 24 * 60 * 60 * 1000) {
-        timeFilterMatch = true;
-      } else if (timeFilter === "month" && diffMs <= 30 * 24 * 60 * 60 * 1000) {
-        timeFilterMatch = true;
-      }
-
-      // Robust fallback of parsing relative text in job.datePosted
-      if (!timeFilterMatch) {
-        const dateStr = (job.datePosted || "").toLowerCase();
-        const numMatch = dateStr.match(/\d+/);
-        const val = numMatch ? parseInt(numMatch[0], 10) : null;
-
-        if (timeFilter === "day") {
-          if (
-            dateStr.includes("hour") || 
-            dateStr.includes("minute") || 
-            dateStr.includes("second") || 
-            dateStr.includes("today") || 
-            (val === 1 && dateStr.includes("day")) ||
-            dateStr.includes("yesterday")
-          ) {
-            timeFilterMatch = true;
-          }
-        } else if (timeFilter === "week") {
-          if (
-            dateStr.includes("hour") || 
-            dateStr.includes("minute") || 
-            dateStr.includes("second") || 
-            dateStr.includes("today") || 
-            dateStr.includes("yesterday")
-          ) {
-            timeFilterMatch = true;
-          } else if (dateStr.includes("day") && val !== null && val <= 7) {
-            timeFilterMatch = true;
-          } else if (dateStr.includes("week") && (val === null || val === 1)) {
-            timeFilterMatch = true;
-          }
-        } else if (timeFilter === "month") {
-          if (
-            dateStr.includes("hour") || 
-            dateStr.includes("minute") || 
-            dateStr.includes("second") || 
-            dateStr.includes("today") || 
-            dateStr.includes("yesterday") ||
-            dateStr.includes("day") ||
-            dateStr.includes("week")
-          ) {
-            timeFilterMatch = true;
-          } else if (dateStr.includes("month") && (val === null || val <= 1)) {
-            timeFilterMatch = true;
-          }
+      const getJobAgeInDays = (): number => {
+        const text = (job.datePosted || "").toLowerCase().trim();
+        
+        // If "not specified" or empty, fall back to document creation time
+        if (!text || text === "not specified" || text === "any time") {
+          const jobMillis = getMillis(job.createdAt);
+          const diffMs = Date.now() - jobMillis;
+          return diffMs / (24 * 60 * 60 * 1000);
         }
-      }
 
-      matchesTime = timeFilterMatch;
+        // Parse relative time strings first to avoid incorrect standard date parsing
+        const numMatch = text.match(/\d+/);
+        const val = numMatch ? parseInt(numMatch[0], 10) : 1;
+
+        if (
+          text.includes("second") || 
+          text.includes("minute") || 
+          text.includes("hour") || 
+          text.includes("today") || 
+          text.includes("now") || 
+          text.includes("just now")
+        ) {
+          return 0;
+        }
+        if (text.includes("yesterday")) {
+          return 1;
+        }
+        if (text.includes("day")) {
+          return val;
+        }
+        if (text.includes("week")) {
+          return val * 7;
+        }
+        if (text.includes("month")) {
+          return val * 30;
+        }
+        if (text.includes("year")) {
+          return val * 365;
+        }
+
+        // Try standard calendar date format
+        const parsed = Date.parse(text);
+        if (!isNaN(parsed)) {
+          const diffMs = Date.now() - parsed;
+          return Math.max(0, diffMs / (24 * 60 * 60 * 1000));
+        }
+
+        // Absolute fallback to document creation time
+        const jobMillis = getMillis(job.createdAt);
+        const diffMs = Date.now() - jobMillis;
+        return diffMs / (24 * 60 * 60 * 1000);
+      };
+
+      const ageInDays = getJobAgeInDays();
+
+      if (timeFilter === "day") {
+        matchesTime = ageInDays <= 1;
+      } else if (timeFilter === "week") {
+        matchesTime = ageInDays <= 7;
+      } else if (timeFilter === "month") {
+        matchesTime = ageInDays <= 30;
+      }
     }
 
     return matchesSearch && matchesStatus && matchesTime;
@@ -186,10 +184,10 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
     <div className="space-y-6" id="dashboard-widget">
       {/* Search, Filter, and Age Strip */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4" id="filters-container">
-        {/* Top block: Search bar & Tracking status tabs */}
+        {/* Top block: Search bar */}
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
           {/* Search Input */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1">
             <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -199,36 +197,6 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none rounded-xl text-sm transition text-slate-700"
               id="search-input"
             />
-          </div>
-
-          {/* Tab Filters */}
-          <div className="flex flex-wrap gap-1.5 animate-fade-in" id="status-filters">
-            {(["all", "bookmarked", "applied", "rejected"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setStatusFilter(tab)}
-                className={`px-3 py-2 text-xs font-semibold rounded-xl transition cursor-pointer border ${
-                  statusFilter === tab
-                    ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
-                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <span className="capitalize">{tab === "bookmarked" ? "save" : tab}</span>
-                {tab === "all" ? (
-                  <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xxs ${statusFilter === tab ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"}`}>
-                    {jobs.length}
-                  </span>
-                ) : (
-                  <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xxs ${
-                    statusFilter === tab 
-                      ? "bg-white/20 text-white" 
-                      : tab === "applied" ? "bg-emerald-50 text-emerald-600" : tab === "rejected" ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"
-                  }`}>
-                    {jobs.filter(j => j.status === tab).length}
-                  </span>
-                )}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -282,7 +250,6 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
                   <th className="px-6 py-4">Role & Company</th>
                   <th className="px-6 py-4">When Posted</th>
                   <th className="px-6 py-4">Salary Range</th>
-                  <th className="px-6 py-4">Tracking Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -295,9 +262,7 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
                     <tr 
                       key={job.id}
                       onClick={() => window.open(job.url, "_blank", "noopener,noreferrer")}
-                      className={`hover:bg-slate-50/75 cursor-pointer transition relative group ${
-                        job.status === "applied" ? "bg-emerald-50/10" : job.status === "rejected" ? "bg-rose-50/10" : "bg-transparent"
-                      }`}
+                      className="hover:bg-slate-50/75 cursor-pointer transition relative group bg-transparent"
                     >
                       {/* Role & Company */}
                       <td className="px-6 py-5">
@@ -331,51 +296,9 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
                         </div>
                       </td>
 
-                      {/* Tracking Status */}
-                      <td className="px-6 py-5">
-                        {isUpdating ? (
-                          <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                            <Loader2 className="w-3 h-3 animate-spin text-indigo-600" />
-                            <span>SAVING...</span>
-                          </div>
-                        ) : isAdmin ? (
-                          /* Intersecting quick application trackers for admin */
-                          <div className="flex items-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
-                            {(["bookmarked", "applied", "rejected"] as ApplicationStatus[]).map((st) => {
-                              const isActive = job.status === st;
-
-                              // Style each of standard triggers matching Professional Polish markup rules
-                              let styleClass = "px-2.5 py-1 rounded text-xxs font-extrabold border uppercase tracking-wider transition-all duration-150 cursor-pointer ";
-                              if (isActive) {
-                                if (st === "applied") styleClass += "bg-emerald-500/10 border-emerald-400 text-emerald-700 shadow-xxs";
-                                else if (st === "rejected") styleClass += "bg-red-500/10 border-red-300 text-rose-700 shadow-xxs";
-                                else styleClass += "bg-slate-100 border-slate-300 text-slate-700 shadow-xxs";
-                              } else {
-                                styleClass += "bg-white hover:bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-650";
-                              }
-
-                              return (
-                                <button
-                                  key={st}
-                                  onClick={(e) => updateStatus(job.id, st, e)}
-                                  className={styleClass}
-                                >
-                                  {st === "bookmarked" ? "Save" : st}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border capitalize ${getStatusBadge(job.status)}`}>
-                            {getStatusIcon(job.status)}
-                            <span className="capitalize">{job.status}</span>
-                          </div>
-                        )}
-                      </td>
-
                       {/* Expand / Detailed info actions */}
                       <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end">
                           <button
                             onClick={(e) => toggleExpand(job.id, e)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
@@ -383,16 +306,6 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
                           >
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-indigo-600" /> : <ChevronDown className="w-4 h-4 text-indigo-600" />}
                           </button>
-                          
-                          {isAdmin && (
-                            <button
-                              onClick={(e) => deleteJob(job.id, e)}
-                              className="p-1.5 rounded-lg text-slate-450 hover:text-red-600 hover:bg-red-50/50 transition"
-                              title="Delete Posting"
-                            >
-                              <Trash2 className="w-4 h-4 text-rose-500" />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -445,9 +358,7 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
                 <div
                   key={job.id}
                   onClick={() => window.open(job.url, "_blank", "noopener,noreferrer")}
-                  className={`p-4 sm:p-5 hover:bg-slate-50 transition space-y-3 cursor-pointer ${
-                    job.status === "applied" ? "bg-emerald-50/10" : job.status === "rejected" ? "bg-rose-50/10" : "bg-transparent"
-                  }`}
+                  className="p-4 sm:p-5 bg-white hover:bg-slate-50 transition space-y-3 cursor-pointer"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -456,10 +367,6 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
                         <ExternalLink className="w-3 h-3 text-slate-400 inline shrink-0" />
                       </h4>
                       <p className="text-xs text-indigo-600 font-bold mt-0.5">{job.companyName}</p>
-                    </div>
-                    {/* Status Pill */}
-                    <div className={`px-2.5 py-0.5 rounded-full text-xxs font-extrabold border ${getStatusBadge(job.status)}`}>
-                      <span className="capitalize">{job.status}</span>
                     </div>
                   </div>
 
@@ -483,35 +390,6 @@ export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: 
                       <span>{isExpanded ? "Hide Details" : "View Requirements"}</span>
                       {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
-
-                    {isAdmin && (
-                      <div className="flex items-center space-x-2">
-                        {/* Compact Admin state-cycle pills list */}
-                        <div className="flex space-x-1">
-                          {(["applied", "rejected"] as ApplicationStatus[]).map((st) => (
-                            <button
-                              key={st}
-                              onClick={(e) => updateStatus(job.id, st, e)}
-                              className={`px-1.5 py-0.5 text-xxs font-bold uppercase rounded transition border ${
-                                job.status === st
-                                  ? st === "applied"
-                                    ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                                    : "bg-rose-50 border-rose-300 text-rose-700"
-                                  : "bg-white border-slate-200 text-slate-400"
-                              }`}
-                            >
-                              {st}
-                            </button>
-                          ))}
-                        </div>
-                        <button
-                          onClick={(e) => deleteJob(job.id, e)}
-                          className="p-1 rounded bg-red-50 text-rose-600 hover:bg-rose-100 transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   {/* Expanded block on mobile */}

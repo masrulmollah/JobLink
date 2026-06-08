@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot, doc, getDocFromServer } from "firebase/firestore";
-import { Plus, Briefcase, CheckSquare, XSquare, Info, Shield, LogIn } from "lucide-react";
+import { Plus, Info, Shield } from "lucide-react";
 import { auth, db, handleFirestoreError, OperationType, logoutUser } from "./firebase";
 import { Job } from "./types";
 import Navbar from "./components/Navbar";
@@ -105,12 +105,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Summarize stats metrics
-  const totalPostings = jobs.length;
-  const appliedCount = jobs.filter((j) => j.status === "applied").length;
-  const rejectedCount = jobs.filter((j) => j.status === "rejected").length;
-  const bookmarkedCount = jobs.filter((j) => j.status === "bookmarked").length;
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900" id="app-root-container">
       {/* Universal header navigation */}
@@ -141,61 +135,6 @@ export default function App() {
                 <span>Guests: Search summaries & click titles to view real LinkedIn openings.</span>
               </div>
             )}
-          </div>
-        </section>
-
-        {/* Dynamic Metric bento-grid cards */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4" id="stats-dashboard">
-          <div className="bg-white border border-slate-205 rounded-xl p-4 sm:p-5 shadow-xxs">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest">Total Curated</span>
-              <span className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"><Briefcase className="w-4 h-4" /></span>
-            </div>
-            {jobsLoading ? (
-              <div className="h-8 w-16 bg-slate-50 animate-pulse rounded-lg mt-2" />
-            ) : (
-              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-2">{totalPostings}</div>
-            )}
-            <p className="text-xxs text-slate-400 mt-1.5 font-semibold">LinkedIn job circulars posted</p>
-          </div>
-
-          <div className="bg-white border border-slate-205 rounded-xl p-4 sm:p-5 shadow-xxs">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest">Bookmarked</span>
-              <span className="p-1.5 bg-amber-50 text-amber-650 rounded-lg"><Info className="w-4 h-4" /></span>
-            </div>
-            {jobsLoading ? (
-              <div className="h-8 w-16 bg-slate-50 animate-pulse rounded-lg mt-2" />
-            ) : (
-              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-2">{bookmarkedCount}</div>
-            )}
-            <p className="text-xxs text-slate-400 mt-1.5 font-semibold">Under review & watchlists</p>
-          </div>
-
-          <div className="bg-white border border-slate-205 rounded-xl p-4 sm:p-5 shadow-xxs">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest">Applications Filed</span>
-              <span className="p-1.5 bg-emerald-50 text-emerald-650 rounded-lg"><CheckSquare className="w-4 h-4" /></span>
-            </div>
-            {jobsLoading ? (
-              <div className="h-8 w-16 bg-slate-50 animate-pulse rounded-lg mt-2" />
-            ) : (
-              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-2">{appliedCount}</div>
-            )}
-            <p className="text-xxs text-slate-400 mt-1.5 font-semibold">Marked as active/applied</p>
-          </div>
-
-          <div className="bg-white border border-slate-205 rounded-xl p-4 sm:p-5 shadow-xxs">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest">Pass / Rejected</span>
-              <span className="p-1.5 bg-rose-50 text-rose-650 rounded-lg"><XSquare className="w-4 h-4" /></span>
-            </div>
-            {jobsLoading ? (
-              <div className="h-8 w-16 bg-slate-50 animate-pulse rounded-lg mt-2" />
-            ) : (
-              <div className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-2">{rejectedCount}</div>
-            )}
-            <p className="text-xxs text-slate-400 mt-1.5 font-semibold">Applications declined/rejected</p>
           </div>
         </section>
 
