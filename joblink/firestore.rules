@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Rule 1)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.email == "masrul89@gmail.com";
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidJob(data) {
+      return data.keys().hasAll(['url', 'roleName', 'companyName', 'salary', 'datePosted', 'qualifications', 'status', 'createdAt', 'updatedAt']) &&
+             data.keys().size() == 9 &&
+             data.url is string && data.url.size() <= 8192 &&
+             data.roleName is string && data.roleName.size() <= 1024 &&
+             data.companyName is string && data.companyName.size() <= 1024 &&
+             data.salary is string && data.salary.size() <= 1024 &&
+             data.datePosted is string && data.datePosted.size() <= 1024 &&
+             data.qualifications is string && data.qualifications.size() <= 100000 &&
+             data.status is string && (data.status == 'bookmarked' || data.status == 'applied' || data.status == 'rejected');
+    }
+
+    match /jobs/{jobId} {
+      // Public read operations
+      allow get, list: if true;
+
+      // Authenticated admin write operations
+      allow create: if isAdmin() && 
+                       isValidId(jobId) && 
+                       isValidJob(incoming()) && 
+                       incoming().createdAt is timestamp && 
+                       incoming().updatedAt is timestamp;
+
+      allow update: if isAdmin() && 
+                       isValidJob(incoming()) && 
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().url == existing().url &&
+                       incoming().diff(existing()).affectedKeys().hasAny(['status', 'roleName', 'companyName', 'salary', 'datePosted', 'qualifications', 'updatedAt']);
+
+      allow delete: if isAdmin();
+    }
+  }
+}

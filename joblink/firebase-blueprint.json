@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "job": {
+      "title": "Job",
+      "description": "A summarized LinkedIn job post and tracking state",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "LinkedIn job link" },
+        "roleName": { "type": "string", "description": "The title or role name of the job position" },
+        "companyName": { "type": "string", "description": "The company offering the job" },
+        "salary": { "type": "string", "description": "Salary information or estimated range" },
+        "datePosted": { "type": "string", "description": "Date or relative date when the job was posted" },
+        "qualifications": { "type": "string", "description": "The qualification or skill requirements for the role" },
+        "status": { "type": "string", "enum": ["bookmarked", "applied", "rejected"], "description": "Tracking status of the job application" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when document was created" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp when document was last updated" }
+      },
+      "required": ["url", "roleName", "companyName", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "jobs/{jobId}": {
+      "schema": "job",
+      "description": "Collection of tracked LinkedIn job postings and application status"
+    }
+  }
+}
