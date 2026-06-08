@@ -1,0 +1,6 @@
+{
+  "name": "JobLink",
+  "description": "An interactive dashboard for parsing and summarizing LinkedIn job descriptions with Gemini AI, and keeping track of application progress.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
