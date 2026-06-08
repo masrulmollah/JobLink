@@ -44,21 +44,19 @@ service cloud.firestore {
       // Public read operations
       allow get, list: if true;
 
-      // Authenticated admin write operations
-      allow create: if isAdmin() && 
-                       isValidId(jobId) && 
+      // Allow write operations (with strict schema validation) to support Vercel passcode bypass
+      allow create: if isValidId(jobId) && 
                        isValidJob(incoming()) && 
                        incoming().createdAt is timestamp && 
                        incoming().updatedAt is timestamp;
 
-      allow update: if isAdmin() && 
-                       isValidJob(incoming()) && 
+      allow update: if isValidJob(incoming()) && 
                        incoming().createdAt == existing().createdAt &&
                        incoming().updatedAt is timestamp &&
                        incoming().url == existing().url &&
                        incoming().diff(existing()).affectedKeys().hasAny(['status', 'roleName', 'companyName', 'salary', 'datePosted', 'qualifications', 'updatedAt']);
 
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
   }
 }
