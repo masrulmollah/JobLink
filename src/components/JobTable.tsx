@@ -23,9 +23,10 @@ interface JobTableProps {
   jobs: Job[];
   isAdmin: boolean;
   onRefresh: () => void;
+  onLoginRequired?: () => void;
 }
 
-export default function JobTable({ jobs, isAdmin, onRefresh }: JobTableProps) {
+export default function JobTable({ jobs, isAdmin, onRefresh, onLoginRequired }: JobTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ApplicationStatus>("all");
   const [timeFilter, setTimeFilter] = useState<"all" | "day" | "week" | "month">("all");

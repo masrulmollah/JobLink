@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot, doc, getDocFromServer } from "firebase/firestore";
 import { Plus, Briefcase, CheckSquare, XSquare, Info, Shield, LogIn } from "lucide-react";
-import { auth, db, handleFirestoreError, OperationType, loginWithGoogle } from "./firebase";
+import { auth, db, handleFirestoreError, OperationType, logoutUser } from "./firebase";
 import { Job } from "./types";
 import Navbar from "./components/Navbar";
 import AddJobModal from "./components/AddJobModal";
 import JobTable from "./components/JobTable";
+import LoginModal from "./components/LoginModal";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -15,8 +16,33 @@ export default function App() {
   const [jobsLoading, setJobsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [connectionTested, setConnectionTested] = useState(false);
+  
+  const [isBypassAdmin, setIsBypassAdmin] = useState<boolean>(() => {
+    return localStorage.getItem("joblink_admin_bypass") === "true";
+  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  const isAdmin = user?.email === "masrul89@gmail.com";
+  const isAdmin = user?.email === "masrul89@gmail.com" || isBypassAdmin;
+
+  const handleLogout = async () => {
+    try {
+      setIsBypassAdmin(false);
+      localStorage.removeItem("joblink_admin_bypass");
+      await logoutUser();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const handleLoginSuccess = (bypassAdmin: boolean, googleUser?: any) => {
+    if (bypassAdmin) {
+      setIsBypassAdmin(true);
+      localStorage.setItem("joblink_admin_bypass", "true");
+    } else {
+      setIsBypassAdmin(false);
+      localStorage.removeItem("joblink_admin_bypass");
+    }
+  };
 
   // Phase 0: Validate Firestore Connection on startup
   useEffect(() => {
@@ -88,7 +114,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans text-slate-900" id="app-root-container">
       {/* Universal header navigation */}
-      <Navbar user={user} loading={authLoading} />
+      <Navbar 
+        user={user} 
+        loading={authLoading} 
+        isAdmin={isAdmin}
+        onLoginClick={() => setIsLoginModalOpen(true)}
+        onLogout={handleLogout}
+      />
 
       {/* Main Container Stage */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" id="core-content-stage">
@@ -191,7 +223,7 @@ export default function App() {
                   <Shield className="w-3 h-3 text-indigo-500" /> Read-Only View
                 </span>
                 <button
-                  onClick={loginWithGoogle}
+                  onClick={() => setIsLoginModalOpen(true)}
                   className="text-xxs text-indigo-600 hover:underline hover:text-indigo-700 mt-1.5 font-bold"
                 >
                   Admin sign in to post
@@ -211,6 +243,7 @@ export default function App() {
               jobs={jobs} 
               isAdmin={isAdmin} 
               onRefresh={() => {}} // Firestore onSnapshot updates state automatically
+              onLoginRequired={() => setIsLoginModalOpen(true)}
             />
           )}
         </section>
@@ -221,6 +254,13 @@ export default function App() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         onSuccess={() => {}} // Firestore real-time updates handle this
+      />
+
+      {/* Modern interactive login authentication selector */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onSuccess={handleLoginSuccess}
       />
 
       {/* Modern dark indigo synced footer */}
